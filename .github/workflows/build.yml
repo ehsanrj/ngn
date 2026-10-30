@@ -47,10 +47,10 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '21'
-      - uses: android-actions/setup-android@v3
       - name: Prepare and Build APK
         run: |
           if [ ! -f index.html ]; then echo "ERROR: index.html not found!" && exit 1; fi
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
           rm -rf www android package.json package-lock.json capacitor.config.*
           mkdir -p www
           cp index.html www/index.html
