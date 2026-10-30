@@ -1,0 +1,1589 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>MINI FARM DEFENSE | از مزرعه‌ات دفاع کن</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Vazirmatn Persian Font -->
+    <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css" rel="stylesheet" type="text/css" />
+    <style>
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-touch-callout: none;
+        }
+        body {
+            font-family: 'Vazirmatn', Tahoma, sans-serif;
+            background-color: #0f172a;
+            color: #f8fafc;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            height: 100dvh;
+            width: 100vw;
+            display: flex;
+            flex-direction: column;
+        }
+        #game-container {
+            position: relative;
+            flex: 1;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: radial-gradient(circle at center, #1e293b 0%, #090d16 100%);
+            overflow: hidden;
+        }
+        canvas {
+            display: block;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7);
+            border-radius: 12px;
+            touch-action: none;
+            cursor: pointer;
+        }
+        .hud-glass {
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+        }
+        .btn-game {
+            transition: all 0.15s ease;
+        }
+        .btn-game:active {
+            transform: scale(0.94);
+        }
+        /* Popover Menu Styling */
+        #slot-menu {
+            position: absolute;
+            z-index: 30;
+            transform: translate(-50%, -50%);
+            pointer-events: auto;
+            transition: opacity 0.15s ease, transform 0.15s ease;
+        }
+        .pulse-ring {
+            animation: pulseRing 2s infinite;
+        }
+        @keyframes pulseRing {
+            0% { box-shadow: 0 0 0 0 rgba(250, 204, 21, 0.5); }
+            70% { box-shadow: 0 0 0 10px rgba(250, 204, 21, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(250, 204, 21, 0); }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Top HUD Bar -->
+    <header class="w-full hud-glass z-20 px-3 py-2 flex flex-wrap items-center justify-between gap-2 border-b border-slate-700/80 shadow-lg">
+        <!-- Title & Stage Selector -->
+        <div class="flex items-center gap-2">
+            <div class="flex items-center gap-1.5 bg-amber-500/10 border border-amber-500/30 px-2.5 py-1 rounded-xl">
+                <span class="text-xl">🛡️</span>
+                <div>
+                    <h1 class="text-xs sm:text-sm font-black text-amber-400 leading-tight">دفاع از مزرعه</h1>
+                    <p id="stage-name-hud" class="text-[10px] sm:text-xs text-slate-300 font-medium">مرحله ۱: مزرعه کوچک</p>
+                </div>
+            </div>
+
+            <!-- Stage Select Button -->
+            <button id="btn-stages" class="btn-game bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600 px-2.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1">
+                <span>🗺️</span>
+                <span class="hidden sm:inline">مراحل</span>
+            </button>
+        </div>
+
+        <!-- Resources & Status -->
+        <div class="flex items-center gap-2 sm:gap-4">
+            <!-- Health -->
+            <div class="flex items-center gap-1.5 bg-rose-950/60 border border-rose-500/30 px-2.5 py-1 rounded-xl" title="سلامت مزرعه">
+                <span class="text-sm sm:text-base">🏠❤️</span>
+                <span id="hud-hp" class="font-black text-rose-400 text-sm sm:text-base">10</span>
+            </div>
+
+            <!-- Coins -->
+            <div class="flex items-center gap-1.5 bg-amber-950/60 border border-amber-500/30 px-2.5 py-1 rounded-xl" title="سکه‌های شما">
+                <span class="text-sm sm:text-base">🪙</span>
+                <span id="hud-coins" class="font-black text-amber-400 text-sm sm:text-base">120</span>
+            </div>
+
+            <!-- Wave Info -->
+            <div class="flex items-center gap-1.5 bg-indigo-950/60 border border-indigo-500/30 px-2.5 py-1 rounded-xl" title="موج حمله">
+                <span class="text-xs sm:text-sm">👹 موج:</span>
+                <span id="hud-wave" class="font-black text-indigo-300 text-xs sm:text-sm">1 / 3</span>
+            </div>
+        </div>
+
+        <!-- Controls (Speed, Sound, Pause, Restart) -->
+        <div class="flex items-center gap-1.5">
+            <button id="btn-speed" class="btn-game bg-slate-800 hover:bg-slate-700 border border-slate-600 text-amber-400 font-black px-2.5 py-1.5 rounded-xl text-xs">
+                1x ⏩
+            </button>
+            <button id="btn-sound" class="btn-game bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-200 px-2.5 py-1.5 rounded-xl text-xs" title="صدا">
+                🔊
+            </button>
+            <button id="btn-pause" class="btn-game bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-200 px-2.5 py-1.5 rounded-xl text-xs" title="توقف">
+                ⏸️
+            </button>
+            <button id="btn-restart" class="btn-game bg-rose-900/60 hover:bg-rose-800 border border-rose-600/50 text-rose-200 px-2.5 py-1.5 rounded-xl text-xs" title="شروع مجدد">
+                🔄
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Interactive Game Area -->
+    <main id="game-container">
+        <canvas id="game-canvas"></canvas>
+
+        <!-- Boss Warning Banner -->
+        <div id="boss-banner" class="hidden absolute top-6 left-1/2 -translate-x-1/2 z-20 pointer-events-none bg-red-950/90 border-2 border-red-500 px-6 py-2 rounded-2xl shadow-2xl flex items-center gap-3 animate-bounce">
+            <span class="text-3xl">🐗</span>
+            <div>
+                <div class="text-red-400 font-black text-sm sm:text-base">هشدار! گراز غول‌پیکر وارد شد!</div>
+                <div class="text-red-200 text-xs">مراقب قابلیت «یورش سریع» (Charge) باشید!</div>
+            </div>
+        </div>
+
+        <!-- Floating Radial / Context Menu for Building & Upgrading Towers -->
+        <div id="slot-menu" class="hidden">
+            <!-- Build New Tower Menu -->
+            <div id="build-options" class="hud-glass p-2.5 rounded-2xl shadow-2xl border border-amber-500/40 flex flex-col gap-2 min-w-[230px]">
+                <div class="flex items-center justify-between border-b border-slate-700 pb-1.5 px-1">
+                    <span class="text-xs font-bold text-amber-300">ساخت برج دفاعی</span>
+                    <button id="close-menu-btn" class="text-slate-400 hover:text-white text-sm font-bold px-1">✕</button>
+                </div>
+                <div class="grid grid-cols-3 gap-2">
+                    <!-- Archer -->
+                    <button data-tower="archer" class="tower-buy-btn btn-game flex flex-col items-center p-2 rounded-xl bg-slate-800/90 hover:bg-emerald-900/50 border border-slate-600 hover:border-emerald-400">
+                        <span class="text-2xl mb-1">🏹</span>
+                        <span class="text-[11px] font-bold text-slate-100">کماندار</span>
+                        <span class="text-[10px] text-slate-400">سرعت بالا</span>
+                        <span class="mt-1 px-2 py-0.5 bg-amber-500/20 text-amber-300 rounded-full text-[11px] font-black">50 🪙</span>
+                    </button>
+                    <!-- Slow -->
+                    <button data-tower="slow" class="tower-buy-btn btn-game flex flex-col items-center p-2 rounded-xl bg-slate-800/90 hover:bg-sky-900/50 border border-slate-600 hover:border-sky-400">
+                        <span class="text-2xl mb-1">❄️</span>
+                        <span class="text-[11px] font-bold text-slate-100">برج یخی</span>
+                        <span class="text-[10px] text-slate-400">کندکننده</span>
+                        <span class="mt-1 px-2 py-0.5 bg-amber-500/20 text-amber-300 rounded-full text-[11px] font-black">60 🪙</span>
+                    </button>
+                    <!-- Cannon -->
+                    <button data-tower="cannon" class="tower-buy-btn btn-game flex flex-col items-center p-2 rounded-xl bg-slate-800/90 hover:bg-rose-900/50 border border-slate-600 hover:border-rose-400">
+                        <span class="text-2xl mb-1">💣</span>
+                        <span class="text-[11px] font-bold text-slate-100">توپخانه</span>
+                        <span class="text-[10px] text-slate-400">قدرت بالا</span>
+                        <span class="mt-1 px-2 py-0.5 bg-amber-500/20 text-amber-300 rounded-full text-[11px] font-black">80 🪙</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Upgrade / Sell Existing Tower Menu -->
+            <div id="upgrade-options" class="hidden hud-glass p-3 rounded-2xl shadow-2xl border border-sky-500/40 flex flex-col gap-2 min-w-[210px]">
+                <div class="flex items-center justify-between border-b border-slate-700 pb-1.5">
+                    <div class="flex items-center gap-1.5">
+                        <span id="upg-icon" class="text-lg">🏹</span>
+                        <span id="upg-title" class="text-xs font-black text-white">کماندار (سطح ۱)</span>
+                    </div>
+                    <button id="close-upg-btn" class="text-slate-400 hover:text-white text-sm font-bold px-1">✕</button>
+                </div>
+                <div id="upg-stats" class="text-[11px] text-slate-300 flex flex-col gap-0.5 bg-slate-900/60 p-2 rounded-lg">
+                    <div>قدرت تخریب: <span class="text-amber-400 font-bold">15</span></div>
+                    <div>برد شلیک: <span class="text-sky-400 font-bold">130</span></div>
+                </div>
+                <div class="flex gap-2 mt-1">
+                    <button id="btn-do-upgrade" class="btn-game flex-1 bg-emerald-600 hover:bg-emerald-500 text-white py-1.5 px-2 rounded-xl text-xs font-bold flex flex-col items-center">
+                        <span>⬆️ ارتقا</span>
+                        <span id="upg-cost" class="text-[11px] text-amber-200 font-black">45 🪙</span>
+                    </button>
+                    <button id="btn-do-sell" class="btn-game bg-rose-700/80 hover:bg-rose-600 text-white py-1.5 px-3 rounded-xl text-xs font-bold flex flex-col items-center">
+                        <span>💰 فروش</span>
+                        <span id="sell-refund" class="text-[11px] text-amber-200 font-black">+35 🪙</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Stage Selection & Guide Modal -->
+        <div id="modal-stages" class="hidden absolute inset-0 z-40 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4">
+            <div class="hud-glass max-w-lg w-full rounded-3xl p-5 border border-slate-700 shadow-2xl flex flex-col gap-4 max-h-[90vh] overflow-y-auto">
+                <div class="flex items-center justify-between border-b border-slate-700 pb-3">
+                    <div class="flex items-center gap-2">
+                        <span class="text-2xl">🌾</span>
+                        <div>
+                            <h2 class="text-base sm:text-lg font-black text-amber-400">انتخاب مرحله (MINI FARM DEFENSE)</h2>
+                            <p class="text-xs text-slate-400">روی نقاط سنگی برج بسازید و از مزرعه در برابر حمله شبانه دفاع کنید!</p>
+                        </div>
+                    </div>
+                    <button id="btn-close-stages" class="text-slate-400 hover:text-white bg-slate-800 px-2.5 py-1 rounded-lg text-sm">✕</button>
+                </div>
+
+                <!-- 5 Stages List -->
+                <div id="stages-list" class="grid grid-cols-1 gap-2.5">
+                    <!-- Populated via JS -->
+                </div>
+
+                <!-- Tower Guide Footer -->
+                <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-3 text-xs text-slate-300 grid grid-cols-3 gap-2 text-center">
+                    <div>
+                        <div class="text-lg">🏹</div>
+                        <div class="font-bold text-emerald-400">کماندار (50🪙)</div>
+                        <div class="text-[10px] text-slate-400">تیراندازی سریع تک‌هدفه</div>
+                    </div>
+                    <div>
+                        <div class="text-lg">❄️</div>
+                        <div class="font-bold text-sky-400">برج یخی (60🪙)</div>
+                        <div class="text-[10px] text-slate-400">کاهش سرعت دشمنان</div>
+                    </div>
+                    <div>
+                        <div class="text-lg">💣</div>
+                        <div class="font-bold text-rose-400">توپخانه (80🪙)</div>
+                        <div class="text-[10px] text-slate-400">آسیب انفجاری و گروهی</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Victory / Game Over Modal -->
+        <div id="modal-end" class="hidden absolute inset-0 z-50 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4">
+            <div class="hud-glass max-w-sm w-full rounded-3xl p-6 border border-slate-700 shadow-2xl text-center flex flex-col items-center gap-3">
+                <div id="end-icon" class="text-6xl mb-1">🏆</div>
+                <h2 id="end-title" class="text-2xl font-black text-amber-400">پیروزی!</h2>
+                <p id="end-desc" class="text-sm text-slate-300 leading-relaxed">مزرعه در امان ماند! تمام مهاجمان شکست خوردند.</p>
+                <div class="flex gap-3 w-full mt-3">
+                    <button id="btn-end-retry" class="btn-game flex-1 bg-slate-800 hover:bg-slate-700 border border-slate-600 text-white font-bold py-2.5 px-4 rounded-xl text-sm">
+                        🔄 تکرار مرحله
+                    </button>
+                    <button id="btn-end-next" class="btn-game flex-1 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black py-2.5 px-4 rounded-xl text-sm">
+                        مرحله بعد ⬅️
+                    </button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        /**
+         * MINI FARM DEFENSE - 2D Top-Down Tower Defense
+         * Supports Android Touch & Windows Mouse seamlessly.
+         * Coordinate System: Virtual 800x500 scaled dynamically to fit screen.
+         */
+
+        const V_WIDTH = 800;
+        const V_HEIGHT = 500;
+
+        // Sound Synthesizer (Web Audio API - No external assets required)
+        class SoundFX {
+            constructor() {
+                this.ctx = null;
+                this.enabled = true;
+            }
+            init() {
+                if (!this.ctx) {
+                    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                    if (AudioCtx) this.ctx = new AudioCtx();
+                }
+                if (this.ctx && this.ctx.state === 'suspended') {
+                    this.ctx.resume();
+                }
+            }
+            play(type) {
+                if (!this.enabled) return;
+                try {
+                    this.init();
+                    if (!this.ctx) return;
+                    const now = this.ctx.currentTime;
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+
+                    if (type === 'arrow') {
+                        osc.type = 'triangle';
+                        osc.frequency.setValueAtTime(600, now);
+                        osc.frequency.exponentialRampToValueAtTime(220, now + 0.08);
+                        gain.gain.setValueAtTime(0.12, now);
+                        gain.gain.linearRampToValueAtTime(0.01, now + 0.08);
+                        osc.start(now);
+                        osc.stop(now + 0.08);
+                    } else if (type === 'cannon') {
+                        osc.type = 'sawtooth';
+                        osc.frequency.setValueAtTime(140, now);
+                        osc.frequency.exponentialRampToValueAtTime(35, now + 0.22);
+                        gain.gain.setValueAtTime(0.2, now);
+                        gain.gain.linearRampToValueAtTime(0.01, now + 0.22);
+                        osc.start(now);
+                        osc.stop(now + 0.22);
+                    } else if (type === 'slow') {
+                        osc.type = 'sine';
+                        osc.frequency.setValueAtTime(880, now);
+                        osc.frequency.exponentialRampToValueAtTime(440, now + 0.14);
+                        gain.gain.setValueAtTime(0.12, now);
+                        gain.gain.linearRampToValueAtTime(0.01, now + 0.14);
+                        osc.start(now);
+                        osc.stop(now + 0.14);
+                    } else if (type === 'build') {
+                        osc.type = 'sine';
+                        osc.frequency.setValueAtTime(330, now);
+                        osc.frequency.setValueAtTime(490, now + 0.06);
+                        gain.gain.setValueAtTime(0.15, now);
+                        gain.gain.linearRampToValueAtTime(0.01, now + 0.15);
+                        osc.start(now);
+                        osc.stop(now + 0.15);
+                    } else if (type === 'coin') {
+                        osc.type = 'sine';
+                        osc.frequency.setValueAtTime(987, now);
+                        osc.frequency.setValueAtTime(1318, now + 0.05);
+                        gain.gain.setValueAtTime(0.1, now);
+                        gain.gain.linearRampToValueAtTime(0.01, now + 0.12);
+                        osc.start(now);
+                        osc.stop(now + 0.12);
+                    } else if (type === 'roar') {
+                        osc.type = 'sawtooth';
+                        osc.frequency.setValueAtTime(95, now);
+                        osc.frequency.linearRampToValueAtTime(55, now + 0.45);
+                        gain.gain.setValueAtTime(0.25, now);
+                        gain.gain.linearRampToValueAtTime(0.01, now + 0.45);
+                        osc.start(now);
+                        osc.stop(now + 0.45);
+                    } else if (type === 'hurt') {
+                        osc.type = 'square';
+                        osc.frequency.setValueAtTime(180, now);
+                        osc.frequency.linearRampToValueAtTime(70, now + 0.2);
+                        gain.gain.setValueAtTime(0.2, now);
+                        gain.gain.linearRampToValueAtTime(0.01, now + 0.2);
+                        osc.start(now);
+                        osc.stop(now + 0.2);
+                    }
+                } catch (e) {
+                    // Ignore audio failure
+                }
+            }
+        }
+
+        const sfx = new SoundFX();
+
+        // Tower Configurations
+        const TOWER_TYPES = {
+            archer: {
+                id: 'archer',
+                name: 'کماندار',
+                icon: '🏹',
+                cost: 50,
+                range: 135,
+                damage: 18,
+                fireRate: 0.65, // seconds per shot
+                color: '#10b981',
+                projSpeed: 380,
+                splash: 0
+            },
+            slow: {
+                id: 'slow',
+                name: 'برج یخی',
+                icon: '❄️',
+                cost: 60,
+                range: 120,
+                damage: 9,
+                fireRate: 1.0,
+                color: '#38bdf8',
+                projSpeed: 310,
+                slowFactor: 0.5, // reduces speed by 50%
+                slowDuration: 2.6,
+                splash: 0
+            },
+            cannon: {
+                id: 'cannon',
+                name: 'توپخانه',
+                icon: '💣',
+                cost: 80,
+                range: 125,
+                damage: 42,
+                fireRate: 1.75,
+                color: '#f43f5e',
+                projSpeed: 250,
+                splash: 55 // AoE radius
+            }
+        };
+
+        // Enemy Configurations
+        const ENEMY_TYPES = {
+            goblin: {
+                name: 'گابلین مهاجم',
+                icon: '👹',
+                hp: 55,
+                speed: 48,
+                reward: 14,
+                radius: 16
+            },
+            orc: {
+                name: 'غول زره‌پوش',
+                icon: '👺',
+                hp: 125,
+                speed: 36,
+                reward: 22,
+                radius: 19
+            },
+            wolf: {
+                name: 'گرگ شب',
+                icon: '🐺',
+                hp: 48,
+                speed: 86,
+                reward: 16,
+                radius: 15
+            },
+            boar_boss: {
+                name: 'گراز غول‌پیکر (BOSS)',
+                icon: '🐗',
+                hp: 950,
+                speed: 38,
+                reward: 150,
+                radius: 28,
+                isBoss: true,
+                chargeCooldown: 4.5, // triggers Charge every 4.5s
+                chargeDuration: 1.4,
+                chargeMultiplier: 2.6
+            }
+        };
+
+        // 5 Stages Definitions
+        const STAGES = [
+            {
+                id: 1,
+                title: '۱ — SMALL FARM (مزرعه کوچک)',
+                difficulty: 'آسان (Easy)',
+                diffColor: 'text-emerald-400',
+                desc: 'یک مسیر مستقیم به سمت مزرعه. مناسب برای یادگیری ساخت دفاع‌ها.',
+                startCoins: 130,
+                theme: { bg: '#14261c', path: '#5c4028', pathBorder: '#3e2b1b', nightAlpha: 0.15 },
+                farmPos: { x: 700, y: 250 },
+                paths: [
+                    [ {x: 0, y: 250}, {x: 220, y: 250}, {x: 220, y: 140}, {x: 470, y: 140}, {x: 470, y: 250}, {x: 700, y: 250} ]
+                ],
+                slots: [
+                    { x: 140, y: 190 }, { x: 280, y: 205 }, { x: 345, y: 80 },
+                    { x: 405, y: 205 }, { x: 540, y: 190 }, { x: 580, y: 315 }
+                ],
+                wheats: [
+                    { x: 630, y: 150 }, { x: 680, y: 150 }, { x: 630, y: 350 }, { x: 680, y: 350 },
+                    { x: 100, y: 360 }, { x: 150, y: 360 }
+                ],
+                waves: [
+                    { count: 6, types: ['goblin'], interval: 1.7 },
+                    { count: 9, types: ['goblin', 'goblin', 'orc'], interval: 1.5 },
+                    { count: 12, types: ['goblin', 'orc'], interval: 1.3 }
+                ]
+            },
+            {
+                id: 2,
+                title: '۲ — WHEAT FARM (مزرعه گندم)',
+                difficulty: 'متوسط (Medium)',
+                diffColor: 'text-amber-400',
+                desc: 'دو مسیر مجزا از میان گندم‌زارها به خانه مزرعه می‌رسند.',
+                startCoins: 150,
+                theme: { bg: '#1b2616', path: '#63462d', pathBorder: '#422e1d', nightAlpha: 0.2 },
+                farmPos: { x: 690, y: 250 },
+                paths: [
+                    [ {x: 0, y: 110}, {x: 320, y: 110}, {x: 480, y: 250}, {x: 690, y: 250} ],
+                    [ {x: 0, y: 390}, {x: 320, y: 390}, {x: 480, y: 250}, {x: 690, y: 250} ]
+                ],
+                slots: [
+                    { x: 170, y: 175 }, { x: 170, y: 325 }, { x: 320, y: 250 },
+                    { x: 430, y: 130 }, { x: 430, y: 370 }, { x: 565, y: 190 }, { x: 565, y: 310 }
+                ],
+                wheats: [
+                    { x: 90, y: 250 }, { x: 140, y: 250 }, { x: 620, y: 120 }, { x: 670, y: 120 },
+                    { x: 620, y: 380 }, { x: 670, y: 380 }
+                ],
+                waves: [
+                    { count: 8, types: ['goblin'], interval: 1.5 },
+                    { count: 12, types: ['goblin', 'orc'], interval: 1.3 },
+                    { count: 15, types: ['goblin', 'orc', 'wolf'], interval: 1.15 },
+                    { count: 18, types: ['orc', 'goblin', 'wolf'], interval: 1.0 }
+                ]
+            },
+            {
+                id: 3,
+                title: '۳ — RIVER FARM (مزرعه رودخانه)',
+                difficulty: 'متوسط (Medium)',
+                diffColor: 'text-sky-400',
+                desc: 'سه مسیر که از پل‌های روی رودخانه عبور کرده و به مزرعه در مرکز می‌رسند.',
+                startCoins: 175,
+                hasRiver: true,
+                theme: { bg: '#132824', path: '#5c4328', pathBorder: '#3b2b19', nightAlpha: 0.22 },
+                farmPos: { x: 690, y: 250 },
+                paths: [
+                    [ {x: 0, y: 85},  {x: 260, y: 85},  {x: 520, y: 250}, {x: 690, y: 250} ],
+                    [ {x: 0, y: 250}, {x: 260, y: 250}, {x: 520, y: 250}, {x: 690, y: 250} ],
+                    [ {x: 0, y: 415}, {x: 260, y: 415}, {x: 520, y: 250}, {x: 690, y: 250} ]
+                ],
+                slots: [
+                    { x: 150, y: 165 }, { x: 150, y: 335 },
+                    { x: 430, y: 115 }, { x: 420, y: 250 }, { x: 430, y: 385 },
+                    { x: 585, y: 185 }, { x: 585, y: 315 }
+                ],
+                wheats: [
+                    { x: 640, y: 130 }, { x: 695, y: 130 }, { x: 640, y: 370 }, { x: 695, y: 370 }
+                ],
+                waves: [
+                    { count: 10, types: ['goblin'], interval: 1.4 },
+                    { count: 14, types: ['goblin', 'orc'], interval: 1.2 },
+                    { count: 16, types: ['goblin', 'wolf', 'orc'], interval: 1.1 },
+                    { count: 20, types: ['orc', 'wolf'], interval: 0.95 }
+                ]
+            },
+            {
+                id: 4,
+                title: '۴ — NIGHT FARM (مزرعه شبانه)',
+                difficulty: 'متوسط رو به بالا (Fast Enemies)',
+                diffColor: 'text-indigo-400',
+                desc: 'شب تاریک است و گرگ‌های سریع (🐺) به مزرعه حمله می‌کنند! برج یخی بسیار حیاتی است.',
+                startCoins: 185,
+                theme: { bg: '#0c1324', path: '#3d352e', pathBorder: '#26201b', nightAlpha: 0.45 },
+                farmPos: { x: 400, y: 250 },
+                paths: [
+                    [ {x: 0, y: 120}, {x: 210, y: 120}, {x: 210, y: 250}, {x: 400, y: 250} ],
+                    [ {x: 800, y: 380}, {x: 590, y: 380}, {x: 590, y: 250}, {x: 400, y: 250} ]
+                ],
+                slots: [
+                    { x: 120, y: 185 }, { x: 280, y: 165 }, { x: 295, y: 320 },
+                    { x: 505, y: 180 }, { x: 520, y: 335 }, { x: 680, y: 315 },
+                    { x: 400, y: 145 }, { x: 400, y: 355 }
+                ],
+                wheats: [
+                    { x: 335, y: 200 }, { x: 465, y: 200 }, { x: 335, y: 305 }, { x: 465, y: 305 }
+                ],
+                waves: [
+                    { count: 10, types: ['wolf', 'goblin'], interval: 1.2 },
+                    { count: 14, types: ['wolf'], interval: 1.0 },
+                    { count: 18, types: ['wolf', 'orc', 'wolf'], interval: 0.95 },
+                    { count: 22, types: ['wolf', 'orc'], interval: 0.85 }
+                ]
+            },
+            {
+                id: 5,
+                title: '۵ — BOSS FARM (نبرد با گراز غول‌پیکر)',
+                difficulty: 'سخت (Hard - BOSS)',
+                diffColor: 'text-rose-500',
+                desc: 'گراز غول‌پیکر (GIANT BOAR 🐗) با قابلیت یورش سریع (Charge) در موج آخر به مزرعه حمله می‌کند!',
+                startCoins: 220,
+                theme: { bg: '#1f1218', path: '#4f3328', pathBorder: '#362119', nightAlpha: 0.35 },
+                farmPos: { x: 700, y: 250 },
+                paths: [
+                    [ {x: 0, y: 160}, {x: 190, y: 160}, {x: 190, y: 360}, {x: 460, y: 360}, {x: 460, y: 140}, {x: 700, y: 140}, {x: 700, y: 250} ],
+                    [ {x: 0, y: 360}, {x: 190, y: 360}, {x: 460, y: 360}, {x: 460, y: 250}, {x: 700, y: 250} ]
+                ],
+                slots: [
+                    { x: 115, y: 255 }, { x: 265, y: 275 }, { x: 385, y: 275 },
+                    { x: 325, y: 425 }, { x: 540, y: 195 }, { x: 540, y: 325 },
+                    { x: 625, y: 80 },  { x: 625, y: 200 }
+                ],
+                wheats: [
+                    { x: 640, y: 350 }, { x: 700, y: 350 }, { x: 745, y: 350 },
+                    { x: 280, y: 120 }, { x: 340, y: 120 }
+                ],
+                waves: [
+                    { count: 10, types: ['goblin', 'orc'], interval: 1.3 },
+                    { count: 15, types: ['wolf', 'orc'], interval: 1.05 },
+                    { count: 18, types: ['orc', 'wolf', 'goblin'], interval: 0.95 },
+                    { count: 8,  types: ['orc', 'wolf'], interval: 1.1, spawnBoss: true }
+                ]
+            }
+        ];
+
+        // Main Game State
+        const state = {
+            stageIndex: 0,
+            unlockedStages: 5, // All 5 accessible so player can test any stage or play sequentially
+            coins: 120,
+            hp: 10,
+            maxHp: 10,
+            waveIndex: 0,
+            waveInProgress: false,
+            waveCooldown: 2.0,
+            enemiesToSpawn: [],
+            spawnTimer: 0,
+            spawnInterval: 1.5,
+            towers: [],
+            enemies: [],
+            projectiles: [],
+            particles: [],
+            floatingTexts: [],
+            selectedSlotIndex: null,
+            gameSpeed: 1,
+            paused: false,
+            gameOver: false,
+            scale: 1
+        };
+
+        // DOM References
+        const canvas = document.getElementById('game-canvas');
+        const ctx = canvas.getContext('2d');
+        const container = document.getElementById('game-container');
+        const slotMenu = document.getElementById('slot-menu');
+        const buildOptions = document.getElementById('build-options');
+        const upgradeOptions = document.getElementById('upgrade-options');
+        const bossBanner = document.getElementById('boss-banner');
+
+        // Resize Canvas to fit nicely while maintaining 800x500 aspect ratio
+        function resizeCanvas() {
+            const rect = container.getBoundingClientRect();
+            const pad = 12;
+            const availW = rect.width - pad;
+            const availH = rect.height - pad;
+            const scale = Math.min(availW / V_WIDTH, availH / V_HEIGHT);
+            state.scale = scale;
+
+            canvas.width = V_WIDTH;
+            canvas.height = V_HEIGHT;
+            canvas.style.width = `${Math.floor(V_WIDTH * scale)}px`;
+            canvas.style.height = `${Math.floor(V_HEIGHT * scale)}px`;
+
+            closeSlotMenu();
+        }
+        window.addEventListener('resize', resizeCanvas);
+
+        // Initialize Stage
+        function loadStage(index) {
+            state.stageIndex = index;
+            const stage = STAGES[index];
+
+            state.coins = stage.startCoins;
+            state.hp = 10;
+            state.maxHp = 10;
+            state.waveIndex = 0;
+            state.waveInProgress = false;
+            state.waveCooldown = 2.0;
+            state.enemiesToSpawn = [];
+            state.towers = [];
+            state.enemies = [];
+            state.projectiles = [];
+            state.particles = [];
+            state.floatingTexts = [];
+            state.selectedSlotIndex = null;
+            state.paused = false;
+            state.gameOver = false;
+
+            bossBanner.classList.add('hidden');
+            document.getElementById('modal-end').classList.add('hidden');
+            document.getElementById('modal-stages').classList.add('hidden');
+            closeSlotMenu();
+            updateHUD();
+        }
+
+        function updateHUD() {
+            const stage = STAGES[state.stageIndex];
+            document.getElementById('stage-name-hud').textContent = stage.title;
+            document.getElementById('hud-hp').textContent = state.hp;
+            document.getElementById('hud-coins').textContent = state.coins;
+            document.getElementById('hud-wave').textContent = `${Math.min(state.waveIndex + 1, stage.waves.length)} / ${stage.waves.length}`;
+
+            // Update buy button states based on current coins
+            document.querySelectorAll('.tower-buy-btn').forEach(btn => {
+                const type = btn.getAttribute('data-tower');
+                const cost = TOWER_TYPES[type].cost;
+                if (state.coins < cost) {
+                    btn.classList.add('opacity-50');
+                } else {
+                    btn.classList.remove('opacity-50');
+                }
+            });
+
+            // If upgrade menu is open, update upgrade button state
+            if (state.selectedSlotIndex !== null) {
+                const tower = state.towers.find(t => t.slotIndex === state.selectedSlotIndex);
+                if (tower) {
+                    const upgCost = getUpgradeCost(tower);
+                    const btnUpg = document.getElementById('btn-do-upgrade');
+                    if (state.coins < upgCost || tower.level >= 4) {
+                        btnUpg.classList.add('opacity-50');
+                    } else {
+                        btnUpg.classList.remove('opacity-50');
+                    }
+                }
+            }
+        }
+
+        function getUpgradeCost(tower) {
+            return Math.round(TOWER_TYPES[tower.type].cost * 0.75 * tower.level);
+        }
+
+        function getSellRefund(tower) {
+            return Math.round(tower.totalSpent * 0.7);
+        }
+
+        // Start Next Wave
+        function startWave() {
+            const stage = STAGES[state.stageIndex];
+            if (state.waveIndex >= stage.waves.length) return;
+
+            const waveDef = stage.waves[state.waveIndex];
+            state.enemiesToSpawn = [];
+
+            for (let i = 0; i < waveDef.count; i++) {
+                const t = waveDef.types[i % waveDef.types.length];
+                state.enemiesToSpawn.push(t);
+            }
+
+            if (waveDef.spawnBoss) {
+                state.enemiesToSpawn.push('boar_boss');
+            }
+
+            state.spawnInterval = waveDef.interval;
+            state.spawnTimer = 0.4;
+            state.waveInProgress = true;
+
+            addFloatingText(V_WIDTH / 2, 70, `موج ${state.waveIndex + 1} آغاز شد!`, '#facc15', 20);
+            updateHUD();
+        }
+
+        function spawnEnemy(typeKey) {
+            const stage = STAGES[state.stageIndex];
+            const def = ENEMY_TYPES[typeKey];
+            const pathIndex = Math.floor(Math.random() * stage.paths.length);
+            const path = stage.paths[pathIndex];
+
+            // Scale HP slightly with wave number
+            const waveScale = 1 + (state.waveIndex * 0.16);
+            const maxHp = Math.round(def.hp * (def.isBoss ? 1 : waveScale));
+
+            const enemy = {
+                type: typeKey,
+                name: def.name,
+                icon: def.icon,
+                hp: maxHp,
+                maxHp: maxHp,
+                baseSpeed: def.speed,
+                reward: def.reward,
+                radius: def.radius,
+                path: path,
+                waypointIndex: 1,
+                x: path[0].x,
+                y: path[0].y,
+                slowTimer: 0,
+                slowFactor: 1,
+                isBoss: !!def.isBoss,
+                chargeTimer: def.chargeCooldown || 0,
+                chargingTime: 0,
+                chargeMultiplier: def.chargeMultiplier || 1
+            };
+
+            if (enemy.isBoss) {
+                sfx.play('roar');
+                bossBanner.classList.remove('hidden');
+                setTimeout(() => bossBanner.classList.add('hidden'), 5000);
+            }
+
+            state.enemies.push(enemy);
+        }
+
+        // Particle & Floating Text Helpers
+        function addFloatingText(x, y, text, color = '#fbbf24', size = 14) {
+            state.floatingTexts.push({
+                x, y, text, color, size,
+                alpha: 1,
+                vy: -28,
+                life: 1.1
+            });
+        }
+
+        function spawnParticles(x, y, color, count = 10, maxSpeed = 90) {
+            for (let i = 0; i < count; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const speed = 20 + Math.random() * maxSpeed;
+                state.particles.push({
+                    x, y,
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed,
+                    radius: 2 + Math.random() * 3,
+                    color,
+                    alpha: 1,
+                    life: 0.35 + Math.random() * 0.3
+                });
+            }
+        }
+
+        // Update Game Logic
+        function update(dt) {
+            if (state.paused || state.gameOver) return;
+
+            const stage = STAGES[state.stageIndex];
+
+            // Wave Spawning Logic
+            if (!state.waveInProgress) {
+                state.waveCooldown -= dt;
+                if (state.waveCooldown <= 0) {
+                    startWave();
+                }
+            } else {
+                if (state.enemiesToSpawn.length > 0) {
+                    state.spawnTimer -= dt;
+                    if (state.spawnTimer <= 0) {
+                        const nextType = state.enemiesToSpawn.shift();
+                        spawnEnemy(nextType);
+                        state.spawnTimer = state.spawnInterval;
+                    }
+                } else if (state.enemies.length === 0) {
+                    // Wave cleared
+                    state.waveIndex++;
+                    state.waveInProgress = false;
+                    if (state.waveIndex >= stage.waves.length) {
+                        triggerEndModal(true);
+                        return;
+                    } else {
+                        state.waveCooldown = 3.2;
+                        state.coins += 20; // Wave completion bonus
+                        addFloatingText(stage.farmPos.x, stage.farmPos.y - 40, '+20 🪙 پاداش موج', '#34d399', 15);
+                        updateHUD();
+                    }
+                }
+            }
+
+            // Update Enemies
+            for (let i = state.enemies.length - 1; i >= 0; i--) {
+                const e = state.enemies[i];
+
+                // Slow debuff timer
+                if (e.slowTimer > 0) {
+                    e.slowTimer -= dt;
+                    if (e.slowTimer <= 0) e.slowFactor = 1;
+                }
+
+                // Boss Giant Boar "Charge" Ability
+                let speedMult = e.slowFactor;
+                if (e.isBoss) {
+                    if (e.chargingTime > 0) {
+                        e.chargingTime -= dt;
+                        speedMult *= e.chargeMultiplier;
+                        if (Math.random() < 0.45) {
+                            spawnParticles(e.x, e.y + 10, '#ef4444', 2, 40);
+                        }
+                    } else {
+                        e.chargeTimer -= dt;
+                        if (e.chargeTimer <= 0) {
+                            e.chargingTime = ENEMY_TYPES.boar_boss.chargeDuration;
+                            e.chargeTimer = ENEMY_TYPES.boar_boss.chargeCooldown;
+                            sfx.play('roar');
+                            addFloatingText(e.x, e.y - 30, '🐗 یورش سریع (CHARGE)!', '#f87171', 15);
+                        }
+                    }
+                }
+
+                const currentSpeed = e.baseSpeed * speedMult;
+                const target = e.path[e.waypointIndex];
+                const dx = target.x - e.x;
+                const dy = target.y - e.y;
+                const dist = Math.hypot(dx, dy);
+
+                if (dist <= currentSpeed * dt) {
+                    e.x = target.x;
+                    e.y = target.y;
+                    e.waypointIndex++;
+                    if (e.waypointIndex >= e.path.length) {
+                        // Reached Farm House!
+                        const dmg = e.isBoss ? 5 : 1;
+                        state.hp = Math.max(0, state.hp - dmg);
+                        sfx.play('hurt');
+                        spawnParticles(stage.farmPos.x, stage.farmPos.y, '#ef4444', 18, 120);
+                        addFloatingText(stage.farmPos.x, stage.farmPos.y - 25, `-${dmg} ❤️`, '#ef4444', 18);
+                        state.enemies.splice(i, 1);
+                        updateHUD();
+
+                        if (state.hp <= 0) {
+                            triggerEndModal(false);
+                            return;
+                        }
+                        continue;
+                    }
+                } else {
+                    e.x += (dx / dist) * currentSpeed * dt;
+                    e.y += (dy / dist) * currentSpeed * dt;
+                }
+            }
+
+            // Update Towers
+            for (const t of state.towers) {
+                t.cooldown -= dt;
+                if (t.recoil > 0) t.recoil = Math.max(0, t.recoil - dt * 5);
+
+                if (t.cooldown <= 0) {
+                    // Find closest enemy to farm within range
+                    let bestTarget = null;
+                    let bestProgress = -1;
+
+                    for (const e of state.enemies) {
+                        const d = Math.hypot(e.x - t.x, e.y - t.y);
+                        if (d <= t.range) {
+                            const progress = e.waypointIndex * 1000 - Math.hypot(e.path[e.waypointIndex].x - e.x, e.path[e.waypointIndex].y - e.y);
+                            if (progress > bestProgress) {
+                                bestProgress = progress;
+                                bestTarget = e;
+                            }
+                        }
+                    }
+
+                    if (bestTarget) {
+                        t.cooldown = t.fireRate;
+                        t.recoil = 1;
+                        t.angle = Math.atan2(bestTarget.y - t.y, bestTarget.x - t.x);
+                        sfx.play(t.type);
+
+                        state.projectiles.push({
+                            x: t.x,
+                            y: t.y - 8,
+                            target: bestTarget,
+                            targetX: bestTarget.x,
+                            targetY: bestTarget.y,
+                            type: t.type,
+                            damage: t.damage,
+                            speed: TOWER_TYPES[t.type].projSpeed,
+                            splash: TOWER_TYPES[t.type].splash,
+                            slowFactor: TOWER_TYPES[t.type].slowFactor,
+                            slowDuration: TOWER_TYPES[t.type].slowDuration,
+                            color: TOWER_TYPES[t.type].color
+                        });
+                    }
+                }
+            }
+
+            // Update Projectiles
+            for (let i = state.projectiles.length - 1; i >= 0; i--) {
+                const p = state.projectiles[i];
+                if (p.target && state.enemies.includes(p.target)) {
+                    p.targetX = p.target.x;
+                    p.targetY = p.target.y;
+                }
+
+                const dx = p.targetX - p.x;
+                const dy = p.targetY - p.y;
+                const dist = Math.hypot(dx, dy);
+
+                if (dist <= p.speed * dt) {
+                    // Hit!
+                    handleProjectileHit(p);
+                    state.projectiles.splice(i, 1);
+                } else {
+                    p.x += (dx / dist) * p.speed * dt;
+                    p.y += (dy / dist) * p.speed * dt;
+                }
+            }
+
+            // Update Particles
+            for (let i = state.particles.length - 1; i >= 0; i--) {
+                const pt = state.particles[i];
+                pt.x += pt.vx * dt;
+                pt.y += pt.vy * dt;
+                pt.life -= dt;
+                pt.alpha = Math.max(0, pt.life * 2);
+                if (pt.life <= 0) state.particles.splice(i, 1);
+            }
+
+            // Update Floating Texts
+            for (let i = state.floatingTexts.length - 1; i >= 0; i--) {
+                const ft = state.floatingTexts[i];
+                ft.y += ft.vy * dt;
+                ft.life -= dt;
+                ft.alpha = Math.min(1, ft.life * 1.5);
+                if (ft.life <= 0) state.floatingTexts.splice(i, 1);
+            }
+        }
+
+        function handleProjectileHit(p) {
+            if (p.splash > 0) {
+                // Cannon AoE Splash
+                spawnParticles(p.targetX, p.targetY, '#f97316', 16, 110);
+                for (let i = state.enemies.length - 1; i >= 0; i--) {
+                    const e = state.enemies[i];
+                    const d = Math.hypot(e.x - p.targetX, e.y - p.targetY);
+                    if (d <= p.splash) {
+                        damageEnemy(e, p.damage);
+                    }
+                }
+            } else {
+                // Single Target Hit
+                spawnParticles(p.targetX, p.targetY, p.color, 7, 65);
+                if (p.target && state.enemies.includes(p.target)) {
+                    if (p.type === 'slow') {
+                        p.target.slowFactor = p.slowFactor;
+                        p.target.slowTimer = p.slowDuration;
+                    }
+                    damageEnemy(p.target, p.damage);
+                }
+            }
+        }
+
+        function damageEnemy(enemy, dmg) {
+            enemy.hp -= dmg;
+            if (enemy.hp <= 0) {
+                const idx = state.enemies.indexOf(enemy);
+                if (idx !== -1) {
+                    state.enemies.splice(idx, 1);
+                    state.coins += enemy.reward;
+                    sfx.play('coin');
+                    spawnParticles(enemy.x, enemy.y, '#facc15', 12, 85);
+                    addFloatingText(enemy.x, enemy.y - 10, `+${enemy.reward} 🪙`, '#facc15', 14);
+                    updateHUD();
+                }
+            }
+        }
+
+        function triggerEndModal(victory) {
+            state.gameOver = true;
+            closeSlotMenu();
+            const modal = document.getElementById('modal-end');
+            const icon = document.getElementById('end-icon');
+            const title = document.getElementById('end-title');
+            const desc = document.getElementById('end-desc');
+            const btnNext = document.getElementById('btn-end-next');
+
+            modal.classList.remove('hidden');
+            if (victory) {
+                icon.textContent = '🏆';
+                title.textContent = 'پیروزی درخشان!';
+                title.className = 'text-2xl font-black text-amber-400';
+                desc.textContent = `مزرعه در مرحله «${STAGES[state.stageIndex].title}» کاملاً در امان ماند!`;
+                if (state.stageIndex < STAGES.length - 1) {
+                    btnNext.classList.remove('hidden');
+                } else {
+                    btnNext.classList.add('hidden');
+                    desc.textContent = 'تبریک! شما هر ۵ مرحله و گراز غول‌پیکر را با موفقیت شکست دادید! 🎉';
+                }
+            } else {
+                icon.textContent = '💥';
+                title.textContent = 'مزرعه سقوط کرد!';
+                title.className = 'text-2xl font-black text-rose-500';
+                desc.textContent = 'مهاجمان شبانه به خانه مزرعه رسیدند. دوباره با چیدمان بهتر تلاش کنید!';
+                btnNext.classList.add('hidden');
+            }
+        }
+
+        // Rendering Game on Canvas
+        function draw() {
+            const stage = STAGES[state.stageIndex];
+            ctx.clearRect(0, 0, V_WIDTH, V_HEIGHT);
+
+            // 1. Background Grass
+            ctx.fillStyle = stage.theme.bg;
+            ctx.fillRect(0, 0, V_WIDTH, V_HEIGHT);
+
+            // Subtle Grass Grid Pattern
+            ctx.strokeStyle = 'rgba(255,255,255,0.025)';
+            ctx.lineWidth = 1;
+            for (let x = 0; x < V_WIDTH; x += 40) {
+                ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, V_HEIGHT); ctx.stroke();
+            }
+            for (let y = 0; y < V_HEIGHT; y += 40) {
+                ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(V_WIDTH, y); ctx.stroke();
+            }
+
+            // 2. River for Stage 3
+            if (stage.hasRiver) {
+                ctx.save();
+                ctx.beginPath();
+                ctx.moveTo(275, 0);
+                ctx.bezierCurveTo(240, 170, 290, 330, 255, V_HEIGHT);
+                ctx.lineWidth = 48;
+                ctx.strokeStyle = '#0ea5e9';
+                ctx.stroke();
+                ctx.lineWidth = 36;
+                ctx.strokeStyle = '#0284c7';
+                ctx.stroke();
+                ctx.restore();
+            }
+
+            // 3. Dirt Paths
+            for (const path of stage.paths) {
+                // Path Border
+                ctx.save();
+                ctx.beginPath();
+                ctx.moveTo(path[0].x, path[0].y);
+                for (let i = 1; i < path.length; i++) ctx.lineTo(path[i].x, path[i].y);
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+                ctx.lineWidth = 44;
+                ctx.strokeStyle = stage.theme.pathBorder;
+                ctx.stroke();
+
+                // Inner Dirt Path
+                ctx.lineWidth = 36;
+                ctx.strokeStyle = stage.theme.path;
+                ctx.stroke();
+                ctx.restore();
+
+                // Spawn Entry Indicator Arrow
+                ctx.font = '18px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('⚠️', Math.max(22, Math.min(V_WIDTH - 22, path[0].x)), path[0].y);
+            }
+
+            // Wooden Bridges on Stage 3
+            if (stage.hasRiver) {
+                const bridgeY = [85, 250, 415];
+                bridgeY.forEach(by => {
+                    ctx.fillStyle = '#78350f';
+                    ctx.fillRect(236, by - 22, 56, 44);
+                    ctx.fillStyle = '#92400e';
+                    for (let bx = 240; bx < 290; bx += 10) {
+                        ctx.fillRect(bx, by - 19, 7, 38);
+                    }
+                });
+            }
+
+            // 4. Decorative Wheat Fields (🌾)
+            for (const w of stage.wheats) {
+                ctx.fillStyle = 'rgba(217, 119, 6, 0.22)';
+                ctx.strokeStyle = 'rgba(245, 158, 11, 0.35)';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.roundRect(w.x - 22, w.y - 22, 44, 44, 8);
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.font = '22px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('🌾', w.x, w.y);
+            }
+
+            // 5. Build Slots & Towers
+            stage.slots.forEach((slot, idx) => {
+                const tower = state.towers.find(t => t.slotIndex === idx);
+                const isSelected = state.selectedSlotIndex === idx;
+
+                // Range Circle if selected
+                if (isSelected) {
+                    const rangeRadius = tower ? tower.range : 130;
+                    ctx.save();
+                    ctx.beginPath();
+                    ctx.arc(slot.x, slot.y, rangeRadius, 0, Math.PI * 2);
+                    ctx.fillStyle = 'rgba(56, 189, 248, 0.12)';
+                    ctx.fill();
+                    ctx.lineWidth = 1.5;
+                    ctx.setLineDash([6, 4]);
+                    ctx.strokeStyle = 'rgba(56, 189, 248, 0.7)';
+                    ctx.stroke();
+                    ctx.restore();
+                }
+
+                // Slot Base Stone Circle
+                ctx.save();
+                ctx.beginPath();
+                ctx.arc(slot.x, slot.y, 24, 0, Math.PI * 2);
+                ctx.fillStyle = tower ? '#1e293b' : 'rgba(148, 163, 184, 0.22)';
+                ctx.fill();
+                ctx.lineWidth = isSelected ? 3 : 2;
+                ctx.strokeStyle = isSelected ? '#facc15' : (tower ? TOWER_TYPES[tower.type].color : 'rgba(203, 213, 225, 0.45)');
+                ctx.stroke();
+                ctx.restore();
+
+                if (!tower) {
+                    // Empty Rock/Build Slot Icon
+                    ctx.font = '18px sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText('🪨', slot.x, slot.y);
+                    ctx.fillStyle = 'rgba(250, 204, 21, 0.85)';
+                    ctx.font = 'bold 11px sans-serif';
+                    ctx.fillText('+', slot.x + 12, slot.y - 12);
+                } else {
+                    // Draw Built Tower
+                    const recoilOffset = tower.recoil * 4;
+                    ctx.font = '24px sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(TOWER_TYPES[tower.type].icon, slot.x - Math.cos(tower.angle || 0) * recoilOffset, slot.y - Math.sin(tower.angle || 0) * recoilOffset);
+
+                    // Level Stars Badge
+                    ctx.fillStyle = '#0f172a';
+                    ctx.beginPath();
+                    ctx.roundRect(slot.x - 18, slot.y + 13, 36, 13, 4);
+                    ctx.fill();
+                    ctx.fillStyle = '#facc15';
+                    ctx.font = 'bold 9px sans-serif';
+                    ctx.fillText('★'.repeat(tower.level), slot.x, slot.y + 20);
+                }
+            });
+
+            // 6. Farm House (🏠)
+            const fp = stage.farmPos;
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(fp.x, fp.y, 34, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(245, 158, 11, 0.2)';
+            ctx.fill();
+            ctx.lineWidth = 3;
+            ctx.strokeStyle = '#f59e0b';
+            ctx.stroke();
+
+            ctx.font = '38px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('🏠', fp.x, fp.y - 2);
+
+            // Farm HP Bar
+            const barW = 54;
+            const barH = 7;
+            ctx.fillStyle = '#1e293b';
+            ctx.fillRect(fp.x - barW / 2, fp.y + 26, barW, barH);
+            ctx.fillStyle = state.hp > 4 ? '#22c55e' : '#ef4444';
+            ctx.fillRect(fp.x - barW / 2, fp.y + 26, barW * (state.hp / state.maxHp), barH);
+            ctx.restore();
+
+            // 7. Enemies
+            for (const e of state.enemies) {
+                ctx.save();
+
+                // Shadow
+                ctx.beginPath();
+                ctx.ellipse(e.x, e.y + e.radius - 3, e.radius * 0.8, e.radius * 0.4, 0, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(0,0,0,0.45)';
+                ctx.fill();
+
+                // Boss Charge Aura
+                if (e.isBoss && e.chargingTime > 0) {
+                    ctx.beginPath();
+                    ctx.arc(e.x, e.y, e.radius + 8, 0, Math.PI * 2);
+                    ctx.fillStyle = 'rgba(239, 68, 68, 0.35)';
+                    ctx.fill();
+                    ctx.lineWidth = 2;
+                    ctx.strokeStyle = '#ef4444';
+                    ctx.stroke();
+                }
+
+                // Slow Frost Aura
+                if (e.slowTimer > 0) {
+                    ctx.beginPath();
+                    ctx.arc(e.x, e.y, e.radius + 4, 0, Math.PI * 2);
+                    ctx.fillStyle = 'rgba(56, 189, 248, 0.35)';
+                    ctx.fill();
+                }
+
+                // Enemy Emoji Sprite
+                ctx.font = `${e.isBoss ? 38 : 24}px sans-serif`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(e.icon, e.x, e.y);
+
+                // Health Bar
+                const hpW = e.isBoss ? 56 : 30;
+                const hpH = e.isBoss ? 6 : 4;
+                const hpY = e.y - e.radius - 10;
+                ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
+                ctx.fillRect(e.x - hpW / 2, hpY, hpW, hpH);
+                const ratio = Math.max(0, e.hp / e.maxHp);
+                ctx.fillStyle = e.isBoss ? '#f43f5e' : (ratio > 0.5 ? '#4ade80' : '#facc15');
+                ctx.fillRect(e.x - hpW / 2, hpY, hpW * ratio, hpH);
+
+                ctx.restore();
+            }
+
+            // 8. Projectiles
+            for (const p of state.projectiles) {
+                ctx.save();
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.type === 'cannon' ? 6 : 4, 0, Math.PI * 2);
+                ctx.fillStyle = p.color;
+                ctx.fill();
+                ctx.lineWidth = 1.5;
+                ctx.strokeStyle = '#ffffff';
+                ctx.stroke();
+                ctx.restore();
+            }
+
+            // 9. Particles
+            for (const pt of state.particles) {
+                ctx.save();
+                ctx.globalAlpha = pt.alpha;
+                ctx.beginPath();
+                ctx.arc(pt.x, pt.y, pt.radius, 0, Math.PI * 2);
+                ctx.fillStyle = pt.color;
+                ctx.fill();
+                ctx.restore();
+            }
+
+            // 10. Night Vignette Atmosphere Overlay
+            const grad = ctx.createRadialGradient(fp.x, fp.y, 90, V_WIDTH / 2, V_HEIGHT / 2, 520);
+            grad.addColorStop(0, 'rgba(15, 23, 42, 0)');
+            grad.addColorStop(1, `rgba(2, 6, 23, ${stage.theme.nightAlpha})`);
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, V_WIDTH, V_HEIGHT);
+
+            // 11. Floating Texts
+            for (const ft of state.floatingTexts) {
+                ctx.save();
+                ctx.globalAlpha = ft.alpha;
+                ctx.font = `900 ${ft.size}px Vazirmatn, Tahoma, sans-serif`;
+                ctx.textAlign = 'center';
+                ctx.fillStyle = '#000000';
+                ctx.fillText(ft.text, ft.x + 1, ft.y + 1);
+                ctx.fillStyle = ft.color;
+                ctx.fillText(ft.text, ft.x, ft.y);
+                ctx.restore();
+            }
+
+            // Pause Overlay
+            if (state.paused) {
+                ctx.fillStyle = 'rgba(15, 23, 42, 0.65)';
+                ctx.fillRect(0, 0, V_WIDTH, V_HEIGHT);
+                ctx.fillStyle = '#facc15';
+                ctx.font = '900 28px Vazirmatn, Tahoma, sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('⏸️ بازی متوقف است', V_WIDTH / 2, V_HEIGHT / 2);
+            }
+        }
+
+        // Canvas Click / Tap Interaction
+        function handleCanvasPointer(e) {
+            if (state.gameOver) return;
+            const rect = canvas.getBoundingClientRect();
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+            const vx = (clientX - rect.left) / state.scale;
+            const vy = (clientY - rect.top) / state.scale;
+
+            const stage = STAGES[state.stageIndex];
+            let clickedSlot = null;
+
+            stage.slots.forEach((slot, idx) => {
+                if (Math.hypot(vx - slot.x, vy - slot.y) <= 28) {
+                    clickedSlot = idx;
+                }
+            });
+
+            if (clickedSlot !== null) {
+                openSlotMenu(clickedSlot);
+            } else {
+                closeSlotMenu();
+            }
+        }
+
+        canvas.addEventListener('pointerdown', handleCanvasPointer);
+
+        function openSlotMenu(slotIdx) {
+            state.selectedSlotIndex = slotIdx;
+            const stage = STAGES[state.stageIndex];
+            const slot = stage.slots[slotIdx];
+            const existingTower = state.towers.find(t => t.slotIndex === slotIdx);
+
+            slotMenu.classList.remove('hidden');
+
+            if (!existingTower) {
+                buildOptions.classList.remove('hidden');
+                upgradeOptions.classList.add('hidden');
+            } else {
+                buildOptions.classList.add('hidden');
+                upgradeOptions.classList.remove('hidden');
+
+                const def = TOWER_TYPES[existingTower.type];
+                document.getElementById('upg-icon').textContent = def.icon;
+                document.getElementById('upg-title').textContent = `${def.name} (سطح ${existingTower.level})`;
+                document.getElementById('upg-stats').innerHTML = `
+                    <div>قدرت تخریب: <span class="text-amber-400 font-bold">${existingTower.damage}</span></div>
+                    <div>برد شلیک: <span class="text-sky-400 font-bold">${existingTower.range}</span></div>
+                `;
+                const upgCost = getUpgradeCost(existingTower);
+                document.getElementById('upg-cost').textContent = existingTower.level >= 4 ? 'حداکثر سطح' : `${upgCost} 🪙`;
+                document.getElementById('sell-refund').textContent = `+${getSellRefund(existingTower)} 🪙`;
+            }
+
+            updateHUD();
+
+            // Position floating menu clamped inside game-container
+            const canvasRect = canvas.getBoundingClientRect();
+            const containerRect = container.getBoundingClientRect();
+
+            let screenX = (canvasRect.left - containerRect.left) + slot.x * state.scale;
+            let screenY = (canvasRect.top - containerRect.top) + slot.y * state.scale - 95;
+
+            if (screenY < 85) {
+                screenY = (canvasRect.top - containerRect.top) + slot.y * state.scale + 95;
+            }
+            screenX = Math.max(130, Math.min(containerRect.width - 130, screenX));
+
+            slotMenu.style.left = `${screenX}px`;
+            slotMenu.style.top = `${screenY}px`;
+        }
+
+        function closeSlotMenu() {
+            state.selectedSlotIndex = null;
+            slotMenu.classList.add('hidden');
+        }
+
+        // Tower Build Actions
+        document.querySelectorAll('.tower-buy-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (state.selectedSlotIndex === null) return;
+
+                const type = btn.getAttribute('data-tower');
+                const def = TOWER_TYPES[type];
+
+                if (state.coins < def.cost) {
+                    addFloatingText(V_WIDTH / 2, V_HEIGHT / 2, 'سکه کافی ندارید! 🪙', '#f87171', 16);
+                    return;
+                }
+
+                const slot = STAGES[state.stageIndex].slots[state.selectedSlotIndex];
+                state.coins -= def.cost;
+                state.towers.push({
+                    slotIndex: state.selectedSlotIndex,
+                    type: type,
+                    level: 1,
+                    x: slot.x,
+                    y: slot.y,
+                    range: def.range,
+                    damage: def.damage,
+                    fireRate: def.fireRate,
+                    cooldown: 0.1,
+                    recoil: 0,
+                    angle: 0,
+                    totalSpent: def.cost
+                });
+
+                sfx.play('build');
+                spawnParticles(slot.x, slot.y, def.color, 12, 70);
+                closeSlotMenu();
+                updateHUD();
+            });
+        });
+
+        // Upgrade Action
+        document.getElementById('btn-do-upgrade').addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (state.selectedSlotIndex === null) return;
+            const tower = state.towers.find(t => t.slotIndex === state.selectedSlotIndex);
+            if (!tower || tower.level >= 4) return;
+
+            const cost = getUpgradeCost(tower);
+            if (state.coins < cost) {
+                addFloatingText(tower.x, tower.y - 25, 'سکه کافی نیست!', '#f87171', 14);
+                return;
+            }
+
+            state.coins -= cost;
+            tower.totalSpent += cost;
+            tower.level++;
+            tower.damage = Math.round(tower.damage * 1.35);
+            tower.range = Math.round(tower.range * 1.08);
+            tower.fireRate = Math.max(0.28, tower.fireRate * 0.92);
+
+            sfx.play('build');
+            spawnParticles(tower.x, tower.y, '#facc15', 14, 80);
+            addFloatingText(tower.x, tower.y - 20, `ارتقا به سطح ${tower.level}!`, '#34d399', 14);
+            closeSlotMenu();
+            updateHUD();
+        });
+
+        // Sell Action
+        document.getElementById('btn-do-sell').addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (state.selectedSlotIndex === null) return;
+            const idx = state.towers.findIndex(t => t.slotIndex === state.selectedSlotIndex);
+            if (idx === -1) return;
+
+            const tower = state.towers[idx];
+            const refund = getSellRefund(tower);
+            state.coins += refund;
+            state.towers.splice(idx, 1);
+
+            sfx.play('coin');
+            addFloatingText(tower.x, tower.y - 15, `+${refund} 🪙`, '#facc15', 15);
+            closeSlotMenu();
+            updateHUD();
+        });
+
+        document.getElementById('close-menu-btn').addEventListener('click', closeSlotMenu);
+        document.getElementById('close-upg-btn').addEventListener('click', closeSlotMenu);
+
+        // Top HUD Controls
+        document.getElementById('btn-speed').addEventListener('click', () => {
+            state.gameSpeed = state.gameSpeed === 1 ? 2 : 1;
+            document.getElementById('btn-speed').textContent = `${state.gameSpeed}x ⏩`;
+        });
+
+        document.getElementById('btn-sound').addEventListener('click', () => {
+            sfx.enabled = !sfx.enabled;
+            document.getElementById('btn-sound').textContent = sfx.enabled ? '🔊' : '🔇';
+        });
+
+        document.getElementById('btn-pause').addEventListener('click', () => {
+            state.paused = !state.paused;
+            document.getElementById('btn-pause').textContent = state.paused ? '▶️' : '⏸️';
+        });
+
+        document.getElementById('btn-restart').addEventListener('click', () => {
+            loadStage(state.stageIndex);
+        });
+
+        // Stages Modal
+        function populateStagesModal() {
+            const list = document.getElementById('stages-list');
+            list.innerHTML = '';
+            STAGES.forEach((st, idx) => {
+                const isCurrent = idx === state.stageIndex;
+                const card = document.createElement('div');
+                card.className = `p-3 rounded-2xl border flex items-center justify-between gap-3 cursor-pointer transition ${
+                    isCurrent ? 'bg-amber-500/15 border-amber-400' : 'bg-slate-900/70 hover:bg-slate-800 border-slate-700'
+                }`;
+                card.innerHTML = `
+                    <div class="flex flex-col gap-0.5">
+                        <div class="flex items-center gap-2">
+                            <span class="font-black text-sm text-white">${st.title}</span>
+                            <span class="text-[11px] font-bold ${st.diffColor}">${st.difficulty}</span>
+                        </div>
+                        <p class="text-xs text-slate-400">${st.desc}</p>
+                    </div>
+                    <button class="btn-game bg-amber-500 hover:bg-amber-400 text-slate-950 font-black px-3 py-1.5 rounded-xl text-xs shrink-0">
+                        شروع ⬅️
+                    </button>
+                `;
+                card.addEventListener('click', () => loadStage(idx));
+                list.appendChild(card);
+            });
+        }
+
+        document.getElementById('btn-stages').addEventListener('click', () => {
+            state.paused = true;
+            document.getElementById('btn-pause').textContent = '▶️';
+            populateStagesModal();
+            document.getElementById('modal-stages').classList.remove('hidden');
+        });
+
+        document.getElementById('btn-close-stages').addEventListener('click', () => {
+            document.getElementById('modal-stages').classList.add('hidden');
+            state.paused = false;
+            document.getElementById('btn-pause').textContent = '⏸️';
+        });
+
+        // End Modal Buttons
+        document.getElementById('btn-end-retry').addEventListener('click', () => {
+            loadStage(state.stageIndex);
+        });
+        document.getElementById('btn-end-next').addEventListener('click', () => {
+            if (state.stageIndex < STAGES.length - 1) {
+                loadStage(state.stageIndex + 1);
+            }
+        });
+
+        // Main Game Loop
+        let lastTime = performance.now();
+        function gameLoop(now) {
+            const rawDt = Math.min(0.1, (now - lastTime) / 1000);
+            lastTime = now;
+
+            update(rawDt * state.gameSpeed);
+            draw();
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        window.onload = () => {
+            resizeCanvas();
+            loadStage(0);
+            requestAnimationFrame(gameLoop);
+        };
+    </script>
+</body>
+</html>
