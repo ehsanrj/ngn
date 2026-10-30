@@ -1,0 +1,54 @@
+name: Build APK and EXE
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Build EXE
+        run: |
+          npm init -y
+          npm pkg set main="main.js"
+          npm install --save-dev electron @electron/packager
+          npx @electron/packager . MiniFarmDefense --platform=win32 --arch=x64 --out=dist --overwrite
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MiniFarmDefense-Windows-EXE
+          path: dist/MiniFarmDefense-win32-x64/
+
+  build-android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+      - name: Build APK
+        run: |
+          mkdir www
+          cp index.html www/
+          npm init -y
+          npm install @capacitor/core @capacitor/cli @capacitor/android
+          npx cap init "Mini Farm Defense" com.minifarm.defense --web-dir=www
+          npx cap add android
+          npx cap sync
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MiniFarmDefense-Android-APK
+          path: android/app/build/outputs/apk/debug/app-debug.apk
