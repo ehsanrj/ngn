@@ -13,8 +13,20 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - name: Build EXE
+      - name: Prepare and Build EXE
+        shell: bash
         run: |
+          if [ ! -f index.html ]; then echo "ERROR: index.html not found!" && exit 1; fi
+          cat << 'EOF' > main.js
+          const { app, BrowserWindow } = require('electron');
+          function createWindow() {
+            const win = new BrowserWindow({ width: 1024, height: 768, autoHideMenuBar: true });
+            win.loadFile('index.html');
+          }
+          app.whenReady().then(createWindow);
+          app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });
+          EOF
+          rm -f package.json package-lock.json
           npm init -y
           npm pkg set main="main.js"
           npm install --save-dev electron @electron/packager
@@ -34,15 +46,17 @@ jobs:
       - uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '17'
+          java-version: '21'
       - uses: android-actions/setup-android@v3
-      - name: Build APK
+      - name: Prepare and Build APK
         run: |
-          mkdir www
-          cp index.html www/
+          if [ ! -f index.html ]; then echo "ERROR: index.html not found!" && exit 1; fi
+          rm -rf www android package.json package-lock.json capacitor.config.*
+          mkdir -p www
+          cp index.html www/index.html
           npm init -y
-          npm install @capacitor/core @capacitor/cli @capacitor/android
-          npx cap init "Mini Farm Defense" com.minifarm.defense --web-dir=www
+          npm install @capacitor/core@latest @capacitor/cli@latest @capacitor/android@latest
+          npx cap init "MiniFarmDefense" "com.minifarm.defense" --web-dir=www
           npx cap add android
           npx cap sync
           cd android
